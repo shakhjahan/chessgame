@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Chess AI</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <header>
+        <h1>♟ CHESS AI</h1>
+        <p>Play against the computer</p>
+    </header>
+
+    <main>
+
+        <section class="game">
+
+            <div class="players">
+
+                <div class="player black-player">
+                    <span>♟</span>
+                    <div>
+                        <strong>AI</strong>
+                        <small id="blackStatus">Computer</small>
+                    </div>
+
+                    <div class="clock" id="blackClock">
+                        10:00
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="board-container">
+
+                <div class="coordinates files">
+                    <span>a</span>
+                    <span>b</span>
+                    <span>c</span>
+                    <span>d</span>
+                    <span>e</span>
+                    <span>f</span>
+                    <span>g</span>
+                    <span>h</span>
+                </div>
+
+                <div id="board"></div>
+
+                <div class="coordinates ranks">
+                    <span>8</span>
+                    <span>7</span>
+                    <span>6</span>
+                    <span>5</span>
+                    <span>4</span>
+                    <span>3</span>
+                    <span>2</span>
+                    <span>1</span>
+                </div>
+
+            </div>
+
+            <div class="players">
+
+                <div class="player white-player">
+
+                    <span>♙</span>
+
+                    <div>
+                        <strong>You</strong>
+                        <small id="whiteStatus">Your turn</small>
+                    </div>
+
+                    <div class="clock" id="whiteClock">
+                        10:00
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <aside class="panel">
+
+            <div class="panel-section">
+
+                <h2>Game</h2>
+
+                <button id="newGame" class="primary">
+                    New Game
+                </button>
+
+                <button id="undo">
+                    Undo Move
+                </button>
+
+            </div>
+
+
+            <div class="panel-section">
+
+                <h2>Difficulty</h2>
+
+                <select id="difficulty">
+
+                    <option value="1">
+                        Easy
+                    </option>
+
+                    <option value="2" selected>
+                        Medium
+                    </option>
+
+                    <option value="3">
+                        Hard
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="panel-section">
+
+                <h2>Time</h2>
+
+                <select id="timeControl">
+
+                    <option value="300">
+                        5 minutes
+                    </option>
+
+                    <option value="600" selected>
+                        10 minutes
+                    </option>
+
+                    <option value="900">
+                        15 minutes
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="panel-section moves-section">
+
+                <h2>Moves</h2>
+
+                <div id="moves" class="moves">
+                    No moves yet
+                </div>
+
+            </div>
+
+        </aside>
+
+    </main>
+
+
+    <!-- Promotion modal -->
+
+    <div id="promotion" class="modal hidden">
+
+        <div class="promotion-box">
+
+            <h2>Choose promotion</h2>
+
+            <div class="promotion-buttons">
+
+                <button data-piece="Q">♕</button>
+                <button data-piece="R">♖</button>
+                <button data-piece="B">♗</button>
+                <button data-piece="N">♘</button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Game over -->
+
+    <div id="gameOver" class="modal hidden">
+
+        <div class="game-over-box">
+
+            <h2 id="gameOverTitle">
+                Game Over
+            </h2>
+
+            <p id="gameOverText"></p>
+
+            <button class="primary" id="newGame2">
+                Play Again
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>
