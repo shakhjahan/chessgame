@@ -967,7 +967,7 @@ async function animatePieceMove(
 
         setTimeout(
             resolve,
-            400
+            300
         );
 
     });
