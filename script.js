@@ -1,12 +1,12 @@
 import {
     initializeApp
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+} from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
 
 import {
     getAuth,
     signInAnonymously,
     onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 
 import {
     getFirestore,
@@ -16,19 +16,24 @@ import {
     updateDoc,
     onSnapshot,
     serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-
-import {
-    firebaseConfig
-} from "./firebase-config.js";
+} from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
 
 
-/* =========================================================
-   FIREBASE
-========================================================= */
+const firebaseConfig = {
+    apiKey: "AIzaSyCvhOcbA-KlP49VdwgTCIbBtHRw-KKTHi0",
+    authDomain: "chessgame-5ad44.firebaseapp.com",
+    projectId: "chessgame-5ad44",
+    storageBucket: "chessgame-5ad44.firebasestorage.app",
+    messagingSenderId: "689216454121",
+    appId: "1:689216454121:web:b716b93859d944938f9f78",
+    measurementId: "G-2M09G38TSB"
+};
+
 
 const app = initializeApp(firebaseConfig);
+
 const auth = getAuth(app);
+
 const db = getFirestore(app);
 
 
