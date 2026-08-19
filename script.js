@@ -23,61 +23,53 @@ import {
 } from "./firebase-config.js";
 
 
-/* =========================================
+/* =========================================================
    FIREBASE
-========================================= */
+========================================================= */
 
 const app = initializeApp(firebaseConfig);
-
 const auth = getAuth(app);
-
 const db = getFirestore(app);
 
 
-/* =========================================
-   HTML
-========================================= */
+/* =========================================================
+   HTML ELEMENTS
+========================================================= */
 
-const boardElement =
-    document.getElementById("board");
+const boardElement = document.getElementById("board");
 
-const movesElement =
-    document.getElementById("moves");
+const movesElement = document.getElementById("moves");
 
-const modeElement =
-    document.getElementById("gameMode");
+const modeElement = document.getElementById("gameMode");
 
-const roomControls =
-    document.getElementById("roomControls");
+const roomControls = document.getElementById("roomControls");
 
-const roomIdElement =
-    document.getElementById("roomId");
+const roomIdElement = document.getElementById("roomId");
 
-const roomStatus =
-    document.getElementById("roomStatus");
+const roomStatus = document.getElementById("roomStatus");
 
-const whiteClock =
-    document.getElementById("whiteClock");
+const whiteClock = document.getElementById("whiteClock");
 
-const blackClock =
-    document.getElementById("blackClock");
+const blackClock = document.getElementById("blackClock");
 
-const whiteStatus =
-    document.getElementById("whiteStatus");
+const whiteStatus = document.getElementById("whiteStatus");
 
-const blackStatus =
-    document.getElementById("blackStatus");
+const blackStatus = document.getElementById("blackStatus");
 
-const timeControl =
-    document.getElementById("timeControl");
+const timeControl = document.getElementById("timeControl");
 
-const difficulty =
-    document.getElementById("difficulty");
+const difficulty = document.getElementById("difficulty");
+
+const gameOverModal = document.getElementById("gameOver");
+
+const gameOverTitle = document.getElementById("gameOverTitle");
+
+const gameOverText = document.getElementById("gameOverText");
 
 
-/* =========================================
-   PIECES
-========================================= */
+/* =========================================================
+   CHESS PIECES
+========================================================= */
 
 const pieces = {
 
@@ -114,11 +106,11 @@ const files = [
 ];
 
 
-/* =========================================
+/* =========================================================
    GAME VARIABLES
-========================================= */
+========================================================= */
 
-let board;
+let board = [];
 
 let turn = "w";
 
@@ -136,9 +128,16 @@ let clocks = {
 let timer = null;
 
 
-/* =========================================
-   MULTIPLAYER
-========================================= */
+/* =========================================================
+   LAST MOVE
+========================================================= */
+
+let lastMove = null;
+
+
+/* =========================================================
+   FIREBASE MULTIPLAYER
+========================================================= */
 
 let currentUser = null;
 
@@ -149,19 +148,24 @@ let myColor = "w";
 let roomUnsubscribe = null;
 
 
-/* =========================================
+/* =========================================================
+   MOVE ANIMATION
+========================================================= */
+
+let animationInProgress = false;
+
+
+/* =========================================================
    INITIAL BOARD
-========================================= */
+========================================================= */
 
 function createInitialBoard() {
 
     const newBoard =
-        Array
-            .from(
-                { length: 8 },
-                () =>
-                    Array(8).fill(null)
-            );
+        Array.from(
+            { length: 8 },
+            () => Array(8).fill(null)
+        );
 
 
     const backRank = [
@@ -202,12 +206,13 @@ function createInitialBoard() {
 
 
     return newBoard;
+
 }
 
 
-/* =========================================
+/* =========================================================
    COPY BOARD
-========================================= */
+========================================================= */
 
 function copyBoard(source) {
 
@@ -222,9 +227,9 @@ function copyBoard(source) {
 }
 
 
-/* =========================================
-   BOARD HELPERS
-========================================= */
+/* =========================================================
+   INSIDE BOARD
+========================================================= */
 
 function inside(row, col) {
 
@@ -238,6 +243,10 @@ function inside(row, col) {
 }
 
 
+/* =========================================================
+   PATH CLEAR
+========================================================= */
+
 function pathClear(
     boardState,
     r1,
@@ -246,11 +255,9 @@ function pathClear(
     c2
 ) {
 
-    const dr =
-        Math.sign(r2 - r1);
+    const dr = Math.sign(r2 - r1);
 
-    const dc =
-        Math.sign(c2 - c1);
+    const dc = Math.sign(c2 - c1);
 
     let r = r1 + dr;
 
@@ -263,25 +270,23 @@ function pathClear(
     ) {
 
         if (boardState[r][c]) {
-
             return false;
-
         }
 
         r += dr;
-
         c += dc;
 
     }
 
 
     return true;
+
 }
 
 
-/* =========================================
-   BASIC MOVE
-========================================= */
+/* =========================================================
+   BASIC MOVE VALIDATION
+========================================================= */
 
 function canMove(
     boardState,
@@ -291,13 +296,20 @@ function canMove(
     c2
 ) {
 
+    if (
+        !inside(r1, c1) ||
+        !inside(r2, c2)
+    ) {
+        return false;
+    }
+
+
     const piece =
         boardState[r1][c1];
 
+
     if (!piece) {
-
         return false;
-
     }
 
 
@@ -309,9 +321,7 @@ function canMove(
         target &&
         target.color === piece.color
     ) {
-
         return false;
-
     }
 
 
@@ -344,9 +354,7 @@ function canMove(
             !target &&
             dr === direction
         ) {
-
             return true;
-
         }
 
 
@@ -359,9 +367,7 @@ function canMove(
                 r1 + direction
             ][c1]
         ) {
-
             return true;
-
         }
 
 
@@ -370,9 +376,7 @@ function canMove(
             dr === direction &&
             target
         ) {
-
             return true;
-
         }
 
 
@@ -470,9 +474,9 @@ function canMove(
 }
 
 
-/* =========================================
-   KING
-========================================= */
+/* =========================================================
+   FIND KING
+========================================================= */
 
 function findKing(
     boardState,
@@ -485,6 +489,7 @@ function findKing(
 
             const piece =
                 boardState[r][c];
+
 
             if (
                 piece &&
@@ -509,9 +514,9 @@ function findKing(
 }
 
 
-/* =========================================
+/* =========================================================
    CHECK
-========================================= */
+========================================================= */
 
 function isCheck(
     boardState,
@@ -526,9 +531,7 @@ function isCheck(
 
 
     if (!king) {
-
         return true;
-
     }
 
 
@@ -544,6 +547,7 @@ function isCheck(
 
             const piece =
                 boardState[r][c];
+
 
             if (
                 piece &&
@@ -576,9 +580,9 @@ function isCheck(
 }
 
 
-/* =========================================
+/* =========================================================
    LEGAL MOVES
-========================================= */
+========================================================= */
 
 function legalMoves(
     row,
@@ -586,6 +590,14 @@ function legalMoves(
 ) {
 
     const result = [];
+
+    const piece =
+        board[row][col];
+
+
+    if (!piece) {
+        return result;
+    }
 
 
     for (let r = 0; r < 8; r++) {
@@ -601,9 +613,7 @@ function legalMoves(
                     c
                 )
             ) {
-
                 continue;
-
             }
 
 
@@ -621,7 +631,7 @@ function legalMoves(
             if (
                 !isCheck(
                     testBoard,
-                    turn
+                    piece.color
                 )
             ) {
 
@@ -642,9 +652,9 @@ function legalMoves(
 }
 
 
-/* =========================================
-   DRAW BOARD
-========================================= */
+/* =========================================================
+   RENDER BOARD
+========================================================= */
 
 function renderBoard() {
 
@@ -668,6 +678,8 @@ function renderBoard() {
                 );
 
 
+            /* SELECTED */
+
             if (
                 selected &&
                 selected[0] === row &&
@@ -681,6 +693,32 @@ function renderBoard() {
             }
 
 
+            /* LAST MOVE */
+
+            if (lastMove) {
+
+                const isFrom =
+                    lastMove.from[0] === row &&
+                    lastMove.from[1] === col;
+
+                const isTo =
+                    lastMove.to[0] === row &&
+                    lastMove.to[1] === col;
+
+
+                if (isFrom || isTo) {
+
+                    square.classList.add(
+                        "last-move"
+                    );
+
+                }
+
+            }
+
+
+            /* LEGAL MOVES */
+
             if (selected) {
 
                 const moves =
@@ -690,13 +728,15 @@ function renderBoard() {
                     );
 
 
-                if (
+                const legal =
                     moves.some(
                         move =>
                             move[0] === row &&
                             move[1] === col
-                    )
-                ) {
+                    );
+
+
+                if (legal) {
 
                     if (board[row][col]) {
 
@@ -717,19 +757,21 @@ function renderBoard() {
             }
 
 
+            /* PIECE */
+
             const piece =
                 board[row][col];
 
 
             if (piece) {
 
-                const element =
+                const pieceElement =
                     document.createElement(
                         "span"
                     );
 
 
-                element.className =
+                pieceElement.className =
                     "piece " +
                     (
                         piece.color === "w"
@@ -738,7 +780,7 @@ function renderBoard() {
                     );
 
 
-                element.textContent =
+                pieceElement.textContent =
                     pieces[
                         piece.color
                     ][
@@ -747,7 +789,7 @@ function renderBoard() {
 
 
                 square.appendChild(
-                    element
+                    pieceElement
                 );
 
             }
@@ -755,7 +797,7 @@ function renderBoard() {
 
             square.onclick =
                 () =>
-                    squareClick(
+                    handleSquareClick(
                         row,
                         col
                     );
@@ -777,21 +819,24 @@ function renderBoard() {
 }
 
 
-/* =========================================
-   CLICK
-========================================= */
+/* =========================================================
+   CLICK SQUARE
+========================================================= */
 
-function squareClick(
+function handleSquareClick(
     row,
     col
 ) {
 
-    if (gameOver) {
-
+    if (
+        gameOver ||
+        animationInProgress
+    ) {
         return;
-
     }
 
+
+    /* Multiplayer */
 
     if (
         modeElement.value ===
@@ -807,6 +852,8 @@ function squareClick(
     const piece =
         board[row][col];
 
+
+    /* Already selected */
 
     if (selected) {
 
@@ -841,6 +888,8 @@ function squareClick(
     }
 
 
+    /* Select own piece */
+
     if (
         piece &&
         piece.color === turn
@@ -863,9 +912,191 @@ function squareClick(
 }
 
 
-/* =========================================
+/* =========================================================
+   ANIMATE MOVE
+========================================================= */
+
+async function animatePieceMove(
+    r1,
+    c1,
+    r2,
+    c2
+) {
+
+    const squares =
+        boardElement.querySelectorAll(
+            ".square"
+        );
+
+
+    const fromSquare =
+        squares[
+            r1 * 8 + c1
+        ];
+
+
+    const toSquare =
+        squares[
+            r2 * 8 + c2
+        ];
+
+
+    if (
+        !fromSquare ||
+        !toSquare
+    ) {
+
+        return;
+
+    }
+
+
+    const originalPiece =
+        fromSquare.querySelector(
+            ".piece"
+        );
+
+
+    if (!originalPiece) {
+
+        return;
+
+    }
+
+
+    const fromRect =
+        fromSquare.getBoundingClientRect();
+
+
+    const toRect =
+        toSquare.getBoundingClientRect();
+
+
+    const boardRect =
+        boardElement.getBoundingClientRect();
+
+
+    /*
+     * Clone the piece.
+     */
+
+    const animatedPiece =
+        originalPiece.cloneNode(true);
+
+
+    animatedPiece.classList.add(
+        "piece-animation"
+    );
+
+
+    /*
+     * Start position.
+     */
+
+    animatedPiece.style.left =
+        (
+            fromRect.left -
+            boardRect.left +
+            fromRect.width / 2
+        ) + "px";
+
+
+    animatedPiece.style.top =
+        (
+            fromRect.top -
+            boardRect.top +
+            fromRect.height / 2
+        ) + "px";
+
+
+    animatedPiece.style.width =
+        (
+            fromRect.width * 0.88
+        ) + "px";
+
+
+    animatedPiece.style.height =
+        (
+            fromRect.height * 0.88
+        ) + "px";
+
+
+    animatedPiece.style.transform =
+        "translate(-50%, -50%)";
+
+
+    /*
+     * Add to board.
+     */
+
+    boardElement.appendChild(
+        animatedPiece
+    );
+
+
+    /*
+     * Hide original.
+     */
+
+    originalPiece.style.opacity =
+        "0";
+
+
+    /*
+     * Movement distance.
+     */
+
+    const dx =
+        toRect.left -
+        fromRect.left;
+
+
+    const dy =
+        toRect.top -
+        fromRect.top;
+
+
+    /*
+     * Start animation.
+     */
+
+    await new Promise(resolve => {
+
+        requestAnimationFrame(() => {
+
+            requestAnimationFrame(() => {
+
+                animatedPiece.style.transform =
+                    `translate(
+                        calc(-50% + ${dx}px),
+                        calc(-50% + ${dy}px)
+                    )`;
+
+
+                setTimeout(
+                    resolve,
+                    290
+                );
+
+            });
+
+        });
+
+    });
+
+
+    /*
+     * Remove animated piece.
+     */
+
+    animatedPiece.remove();
+
+}
+
+
+/* =========================================================
    MAKE MOVE
-========================================= */
+========================================================= */
 
 async function makeMove(
     r1,
@@ -876,24 +1107,56 @@ async function makeMove(
     remote = false
 ) {
 
+    if (animationInProgress) {
+        return;
+    }
+
+
     const piece =
         board[r1][c1];
 
 
     if (!piece) {
-
         return;
-
     }
 
 
-    history.push({
-        board:
-            copyBoard(board),
+    animationInProgress = true;
 
-        turn
+
+    /*
+     * Save for Undo.
+     */
+
+    history.push({
+        board: copyBoard(board),
+        turn: turn
     });
 
+
+    /*
+     * Was this a capture?
+     */
+
+    const captured =
+        board[r2][c2] !== null;
+
+
+    /*
+     * Animate BEFORE changing board.
+     */
+
+    await animatePieceMove(
+        r1,
+        c1,
+        r2,
+        c2
+    );
+
+
+    /*
+     * Move piece.
+     */
 
     board[r2][c2] = {
         ...piece
@@ -903,7 +1166,9 @@ async function makeMove(
     board[r1][c1] = null;
 
 
-    /* PROMOTION */
+    /*
+     * Promotion.
+     */
 
     if (
         piece.type === "P" &&
@@ -918,6 +1183,10 @@ async function makeMove(
 
     }
 
+
+    /*
+     * Notation.
+     */
 
     const notation =
         (
@@ -935,8 +1204,31 @@ async function makeMove(
     addMove(notation);
 
 
+    /*
+     * Last move.
+     */
+
+    lastMove = {
+
+        from: [
+            r1,
+            c1
+        ],
+
+        to: [
+            r2,
+            c2
+        ]
+
+    };
+
+
     selected = null;
 
+
+    /*
+     * Change turn.
+     */
 
     turn =
         turn === "w"
@@ -944,11 +1236,57 @@ async function makeMove(
             : "w";
 
 
-    checkGameEnd();
-
+    /*
+     * Redraw.
+     */
 
     renderBoard();
 
+
+    /*
+     * Capture effect.
+     */
+
+    if (captured) {
+
+        const targetSquare =
+            boardElement.querySelectorAll(
+                ".square"
+            )[
+                r2 * 8 + c2
+            ];
+
+
+        if (targetSquare) {
+
+            targetSquare.classList.add(
+                "capture-animation"
+            );
+
+
+            setTimeout(() => {
+
+                targetSquare.classList.remove(
+                    "capture-animation"
+                );
+
+            }, 300);
+
+        }
+
+    }
+
+
+    /*
+     * Check game.
+     */
+
+    checkGameEnd();
+
+
+    /*
+     * Firebase.
+     */
 
     if (
         !remote &&
@@ -962,12 +1300,16 @@ async function makeMove(
     }
 
 
-    /* AI */
+    animationInProgress = false;
+
+
+    /*
+     * AI.
+     */
 
     if (
         !remote &&
-        modeElement.value ===
-            "ai" &&
+        modeElement.value === "ai" &&
         turn === "b" &&
         !gameOver
     ) {
@@ -982,9 +1324,9 @@ async function makeMove(
 }
 
 
-/* =========================================
-   MOVES TEXT
-========================================= */
+/* =========================================================
+   ADD MOVE
+========================================================= */
 
 function addMove(text) {
 
@@ -999,34 +1341,40 @@ function addMove(text) {
     } else {
 
         movesElement.textContent +=
-            "   " +
-            text;
+            "   " + text;
 
     }
 
 }
 
 
-/* =========================================
+/* =========================================================
    GAME END
-========================================= */
+========================================================= */
 
 function checkGameEnd() {
 
-    let moves = [];
+    const possibleMoves = [];
 
 
     for (let r = 0; r < 8; r++) {
 
         for (let c = 0; c < 8; c++) {
 
+            const piece =
+                board[r][c];
+
+
             if (
-                board[r][c] &&
-                board[r][c].color === turn
+                piece &&
+                piece.color === turn
             ) {
 
-                moves.push(
-                    ...legalMoves(r, c)
+                possibleMoves.push(
+                    ...legalMoves(
+                        r,
+                        c
+                    )
                 );
 
             }
@@ -1036,54 +1384,72 @@ function checkGameEnd() {
     }
 
 
-    if (moves.length === 0) {
+    if (
+        possibleMoves.length === 0
+    ) {
 
         gameOver = true;
 
         clearInterval(timer);
 
 
-        const title =
-            isCheck(board, turn)
-                ? (
-                    turn === "w"
-                        ? "Computer Wins"
-                        : "You Win"
-                )
-                : "Draw";
+        if (
+            isCheck(
+                board,
+                turn
+            )
+        ) {
+
+            if (turn === "w") {
+
+                gameOverTitle.textContent =
+                    "Computer Wins";
+
+                gameOverText.textContent =
+                    "Checkmate!";
+
+            } else {
+
+                gameOverTitle.textContent =
+                    "You Win!";
+
+                gameOverText.textContent =
+                    "Checkmate!";
+
+            }
+
+        } else {
+
+            gameOverTitle.textContent =
+                "Draw";
+
+            gameOverText.textContent =
+                "Stalemate.";
+
+        }
 
 
-        document.getElementById(
-            "gameOverTitle"
-        ).textContent = title;
-
-
-        document.getElementById(
-            "gameOverText"
-        ).textContent =
-            isCheck(board, turn)
-                ? "Checkmate!"
-                : "Stalemate.";
-
-
-        document
-            .getElementById("gameOver")
-            .classList.remove(
-                "hidden"
-            );
+        gameOverModal.classList.remove(
+            "hidden"
+        );
 
     }
 
 }
 
 
-/* =========================================
+/* =========================================================
    AI
-========================================= */
+========================================================= */
 
 function computerMove() {
 
-    const all = [];
+    if (gameOver) {
+        return;
+    }
+
+
+    const allMoves = [];
 
 
     for (let r = 0; r < 8; r++) {
@@ -1109,7 +1475,7 @@ function computerMove() {
 
                 for (const move of moves) {
 
-                    all.push([
+                    allMoves.push([
                         r,
                         c,
                         move[0],
@@ -1125,18 +1491,16 @@ function computerMove() {
     }
 
 
-    if (!all.length) {
-
+    if (!allMoves.length) {
         return;
-
     }
 
 
-    let selectedMove =
-        all[
+    let chosenMove =
+        allMoves[
             Math.floor(
                 Math.random() *
-                all.length
+                allMoves.length
             )
         ];
 
@@ -1147,10 +1511,15 @@ function computerMove() {
         );
 
 
+    /*
+     * Medium / Hard:
+     * prefer captures.
+     */
+
     if (level >= 2) {
 
         const captures =
-            all.filter(
+            allMoves.filter(
                 move =>
                     board[
                         move[2]
@@ -1162,7 +1531,7 @@ function computerMove() {
 
         if (captures.length) {
 
-            selectedMove =
+            chosenMove =
                 captures[
                     Math.floor(
                         Math.random() *
@@ -1176,15 +1545,18 @@ function computerMove() {
 
 
     makeMove(
-        ...selectedMove
+        chosenMove[0],
+        chosenMove[1],
+        chosenMove[2],
+        chosenMove[3]
     );
 
 }
 
 
-/* =========================================
+/* =========================================================
    LEGAL MOVES FOR COLOR
-========================================= */
+========================================================= */
 
 function legalMovesForColor(
     row,
@@ -1192,9 +1564,12 @@ function legalMovesForColor(
     color
 ) {
 
-    const oldTurn = turn;
+    const oldTurn =
+        turn;
+
 
     turn = color;
+
 
     const moves =
         legalMoves(
@@ -1202,16 +1577,19 @@ function legalMovesForColor(
             col
         );
 
-    turn = oldTurn;
+
+    turn =
+        oldTurn;
+
 
     return moves;
 
 }
 
 
-/* =========================================
+/* =========================================================
    CLOCK
-========================================= */
+========================================================= */
 
 function updateClocks() {
 
@@ -1219,6 +1597,7 @@ function updateClocks() {
         formatTime(
             clocks.w
         );
+
 
     blackClock.textContent =
         formatTime(
@@ -1234,6 +1613,7 @@ function formatTime(seconds) {
         Math.floor(
             seconds / 60
         );
+
 
     const secs =
         seconds % 60;
@@ -1260,10 +1640,11 @@ function startClock() {
         setInterval(
             () => {
 
-                if (gameOver) {
-
+                if (
+                    gameOver ||
+                    animationInProgress
+                ) {
                     return;
-
                 }
 
 
@@ -1283,10 +1664,18 @@ function startClock() {
                     );
 
 
-                    alert(
+                    gameOverTitle.textContent =
                         turn === "w"
-                            ? "Computer wins on time!"
-                            : "You win on time!"
+                            ? "Computer Wins"
+                            : "You Win!";
+
+
+                    gameOverText.textContent =
+                        "Time has expired.";
+
+
+                    gameOverModal.classList.remove(
+                        "hidden"
                     );
 
                 }
@@ -1301,9 +1690,9 @@ function startClock() {
 }
 
 
-/* =========================================
+/* =========================================================
    STATUS
-========================================= */
+========================================================= */
 
 function updateStatus() {
 
@@ -1320,6 +1709,7 @@ function updateStatus() {
                         : "Opponent turn"
                 )
                 : "Waiting";
+
 
         blackStatus.textContent =
             turn === "b"
@@ -1348,22 +1738,32 @@ function updateStatus() {
 }
 
 
-/* =========================================
+/* =========================================================
    NEW GAME
-========================================= */
+========================================================= */
 
 function newGame() {
 
     board =
         createInitialBoard();
 
+
     turn = "w";
+
 
     selected = null;
 
+
     history = [];
 
+
+    lastMove = null;
+
+
     gameOver = false;
+
+
+    animationInProgress = false;
 
 
     const seconds =
@@ -1382,46 +1782,54 @@ function newGame() {
         "No moves yet";
 
 
-    document
-        .getElementById(
-            "gameOver"
-        )
-        .classList.add(
-            "hidden"
-        );
+    gameOverModal.classList.add(
+        "hidden"
+    );
 
 
     renderBoard();
+
 
     startClock();
 
 }
 
 
+/* =========================================================
+   NEW GAME BUTTON
+========================================================= */
+
 document
     .getElementById("newGame")
-    .onclick =
-        newGame;
+    .addEventListener(
+        "click",
+        newGame
+    );
 
 
 document
     .getElementById("newGame2")
-    .onclick =
-        newGame;
+    .addEventListener(
+        "click",
+        newGame
+    );
 
+
+/* =========================================================
+   UNDO
+========================================================= */
 
 document
     .getElementById("undo")
-    .onclick =
+    .addEventListener(
+        "click",
         () => {
 
             if (
                 history.length === 0 ||
-                gameOver
+                animationInProgress
             ) {
-
                 return;
-
             }
 
 
@@ -1432,24 +1840,39 @@ document
             board =
                 previous.board;
 
+
             turn =
                 previous.turn;
 
 
+            selected = null;
+
+
+            lastMove = null;
+
+
             renderBoard();
 
-        };
+        }
+    );
 
 
-timeControl.onchange =
-    newGame;
+/* =========================================================
+   TIME CHANGE
+========================================================= */
+
+timeControl.addEventListener(
+    "change",
+    newGame
+);
 
 
-/* =========================================
-   MODE
-========================================= */
+/* =========================================================
+   MODE CHANGE
+========================================================= */
 
-modeElement.onchange =
+modeElement.addEventListener(
+    "change",
     () => {
 
         roomControls.classList.toggle(
@@ -1461,20 +1884,24 @@ modeElement.onchange =
 
         newGame();
 
-    };
+    }
+);
 
 
-/* =========================================
-   FIREBASE LOGIN
-========================================= */
+/* =========================================================
+   FIREBASE AUTH
+========================================================= */
 
 signInAnonymously(auth)
     .catch(error => {
 
         console.error(
-            "Firebase Auth error:",
+            "Firebase authentication error:",
             error
         );
+
+        roomStatus.textContent =
+            "Firebase authentication failed.";
 
     });
 
@@ -1483,223 +1910,275 @@ onAuthStateChanged(
     auth,
     user => {
 
-        currentUser = user || null;
+        currentUser =
+            user || null;
+
+
+        if (currentUser) {
+
+            if (
+                modeElement.value ===
+                "multiplayer"
+            ) {
+
+                roomStatus.textContent =
+                    "Firebase connected.";
+
+            }
+
+        }
 
     }
 );
 
 
-/* =========================================
+/* =========================================================
    CREATE ROOM
-========================================= */
+========================================================= */
 
 document
     .getElementById("createRoom")
-    .onclick =
-    async () => {
+    .addEventListener(
+        "click",
+        async () => {
 
-        if (!currentUser) {
+            if (!currentUser) {
 
-            roomStatus.textContent =
-                "Connecting to Firebase...";
+                roomStatus.textContent =
+                    "Connecting to Firebase...";
 
-            return;
-
-        }
-
-
-        currentRoom =
-            Math.random()
-                .toString(36)
-                .substring(
-                    2,
-                    8
-                )
-                .toUpperCase();
-
-
-        roomIdElement.value =
-            currentRoom;
-
-
-        myColor = "w";
-
-
-        const roomRef =
-            doc(
-                db,
-                "rooms",
-                currentRoom
-            );
-
-
-        await setDoc(
-            roomRef,
-            {
-
-                hostUid:
-                    currentUser.uid,
-
-                guestUid:
-                    null,
-
-                board:
-                    JSON.stringify(board),
-
-                turn,
-
-                clocks,
-
-                status:
-                    "waiting",
-
-                createdAt:
-                    serverTimestamp(),
-
-                updatedAt:
-                    serverTimestamp()
+                return;
 
             }
-        );
 
 
-        roomStatus.textContent =
-            "Room created: " +
-            currentRoom;
+            currentRoom =
+                Math.random()
+                    .toString(36)
+                    .substring(
+                        2,
+                        8
+                    )
+                    .toUpperCase();
 
 
-        listenRoom();
+            roomIdElement.value =
+                currentRoom;
 
-    };
+
+            myColor = "w";
 
 
-/* =========================================
+            const roomRef =
+                doc(
+                    db,
+                    "rooms",
+                    currentRoom
+                );
+
+
+            try {
+
+                await setDoc(
+                    roomRef,
+                    {
+
+                        hostUid:
+                            currentUser.uid,
+
+                        guestUid:
+                            null,
+
+                        board:
+                            JSON.stringify(
+                                board
+                            ),
+
+                        turn,
+
+                        clocks,
+
+                        status:
+                            "waiting",
+
+                        createdAt:
+                            serverTimestamp(),
+
+                        updatedAt:
+                            serverTimestamp()
+
+                    }
+                );
+
+
+                roomStatus.textContent =
+                    "Room created: " +
+                    currentRoom;
+
+
+                listenRoom();
+
+            } catch (error) {
+
+                console.error(
+                    error
+                );
+
+
+                roomStatus.textContent =
+                    "Could not create room.";
+
+            }
+
+        }
+    );
+
+
+/* =========================================================
    JOIN ROOM
-========================================= */
+========================================================= */
 
 document
     .getElementById("joinRoom")
-    .onclick =
-    async () => {
+    .addEventListener(
+        "click",
+        async () => {
 
-        if (!currentUser) {
+            if (!currentUser) {
 
-            roomStatus.textContent =
-                "Connecting to Firebase...";
+                roomStatus.textContent =
+                    "Connecting to Firebase...";
 
-            return;
-
-        }
-
-
-        const id =
-            roomIdElement.value
-                .trim()
-                .toUpperCase();
-
-
-        if (!id) {
-
-            roomStatus.textContent =
-                "Enter Room ID.";
-
-            return;
-
-        }
-
-
-        const roomRef =
-            doc(
-                db,
-                "rooms",
-                id
-            );
-
-
-        const snapshot =
-            await getDoc(
-                roomRef
-            );
-
-
-        if (!snapshot.exists()) {
-
-            roomStatus.textContent =
-                "Room not found.";
-
-            return;
-
-        }
-
-
-        const data =
-            snapshot.data();
-
-
-        if (
-            data.guestUid &&
-            data.guestUid !==
-                currentUser.uid
-        ) {
-
-            roomStatus.textContent =
-                "Room is full.";
-
-            return;
-
-        }
-
-
-        currentRoom = id;
-
-        myColor = "b";
-
-
-        await updateDoc(
-            roomRef,
-            {
-
-                guestUid:
-                    currentUser.uid,
-
-                status:
-                    "playing",
-
-                updatedAt:
-                    serverTimestamp()
+                return;
 
             }
-        );
 
 
-        roomStatus.textContent =
-            "Joined room as Black.";
+            const roomId =
+                roomIdElement.value
+                    .trim()
+                    .toUpperCase();
 
 
-        listenRoom();
+            if (!roomId) {
 
-    };
+                roomStatus.textContent =
+                    "Enter Room ID.";
+
+                return;
+
+            }
 
 
-/* =========================================
-   LISTEN ROOM
-========================================= */
+            const roomRef =
+                doc(
+                    db,
+                    "rooms",
+                    roomId
+                );
+
+
+            try {
+
+                const snapshot =
+                    await getDoc(
+                        roomRef
+                    );
+
+
+                if (
+                    !snapshot.exists()
+                ) {
+
+                    roomStatus.textContent =
+                        "Room not found.";
+
+                    return;
+
+                }
+
+
+                const data =
+                    snapshot.data();
+
+
+                if (
+                    data.guestUid &&
+                    data.guestUid !==
+                        currentUser.uid
+                ) {
+
+                    roomStatus.textContent =
+                        "Room is full.";
+
+                    return;
+
+                }
+
+
+                currentRoom =
+                    roomId;
+
+
+                myColor = "b";
+
+
+                await updateDoc(
+                    roomRef,
+                    {
+
+                        guestUid:
+                            currentUser.uid,
+
+                        status:
+                            "playing",
+
+                        updatedAt:
+                            serverTimestamp()
+
+                    }
+                );
+
+
+                roomStatus.textContent =
+                    "Joined as Black.";
+
+
+                listenRoom();
+
+            } catch (error) {
+
+                console.error(
+                    error
+                );
+
+
+                roomStatus.textContent =
+                    "Could not join room.";
+
+            }
+
+        }
+    );
+
+
+/* =========================================================
+   LISTEN TO ROOM
+========================================================= */
 
 function listenRoom() {
 
-    if (
-        roomUnsubscribe
-    ) {
+    if (roomUnsubscribe) {
 
         roomUnsubscribe();
+
+        roomUnsubscribe = null;
 
     }
 
 
     if (!currentRoom) {
-
         return;
-
     }
 
 
@@ -1719,6 +2198,9 @@ function listenRoom() {
                 if (
                     !snapshot.exists()
                 ) {
+
+                    roomStatus.textContent =
+                        "Room was deleted.";
 
                     return;
 
@@ -1751,6 +2233,11 @@ function listenRoom() {
 
                 if (data.board) {
 
+                    /*
+                     * Не запускаем повторную
+                     * анимацию на своём ходе.
+                     */
+
                     board =
                         JSON.parse(
                             data.board
@@ -1777,15 +2264,26 @@ function listenRoom() {
 
                 renderBoard();
 
+            },
+            error => {
+
+                console.error(
+                    "Room listener error:",
+                    error
+                );
+
+                roomStatus.textContent =
+                    "Room connection error.";
+
             }
         );
 
 }
 
 
-/* =========================================
+/* =========================================================
    SYNC ROOM
-========================================= */
+========================================================= */
 
 async function syncRoom() {
 
@@ -1793,9 +2291,7 @@ async function syncRoom() {
         !currentRoom ||
         !currentUser
     ) {
-
         return;
-
     }
 
 
@@ -1814,7 +2310,9 @@ async function syncRoom() {
             {
 
                 board:
-                    JSON.stringify(board),
+                    JSON.stringify(
+                        board
+                    ),
 
                 turn,
 
@@ -1829,7 +2327,7 @@ async function syncRoom() {
     } catch (error) {
 
         console.error(
-            "Sync error:",
+            "Firebase sync error:",
             error
         );
 
@@ -1841,8 +2339,8 @@ async function syncRoom() {
 }
 
 
-/* =========================================
-   START
-========================================= */
+/* =========================================================
+   START GAME
+========================================================= */
 
 newGame();
