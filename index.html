@@ -15,7 +15,7 @@
 
     <header>
         <h1>♟ CHESS AI</h1>
-        <p>Play against the computer</p>
+        <p>Play against the computer or online</p>
     </header>
 
     <main>
@@ -25,18 +25,22 @@
             <div class="players">
 
                 <div class="player black-player">
+
                     <span>♟</span>
+
                     <div>
-                        <strong>AI</strong>
+                        <strong>AI / Opponent</strong>
                         <small id="blackStatus">Computer</small>
                     </div>
 
                     <div class="clock" id="blackClock">
                         10:00
                     </div>
+
                 </div>
 
             </div>
+
 
             <div class="board-container">
 
@@ -65,6 +69,7 @@
                 </div>
 
             </div>
+
 
             <div class="players">
 
@@ -101,6 +106,52 @@
                 <button id="undo">
                     Undo Move
                 </button>
+
+            </div>
+
+
+            <div class="panel-section">
+
+                <h2>Mode</h2>
+
+                <select id="gameMode">
+
+                    <option value="ai" selected>
+                        vs Computer
+                    </option>
+
+                    <option value="multiplayer">
+                        Multiplayer
+                    </option>
+
+                </select>
+
+
+                <div id="roomControls" class="room-controls hidden">
+
+                    <input
+                        id="roomId"
+                        type="text"
+                        placeholder="Room ID"
+                        maxlength="20"
+                    >
+
+                    <button
+                        id="createRoom"
+                        class="primary"
+                    >
+                        Create Room
+                    </button>
+
+                    <button id="joinRoom">
+                        Join Room
+                    </button>
+
+                    <small id="roomStatus">
+                        Not connected
+                    </small>
+
+                </div>
 
             </div>
 
@@ -166,13 +217,13 @@
     </main>
 
 
-    <!-- Promotion modal -->
-
     <div id="promotion" class="modal hidden">
 
         <div class="promotion-box">
 
-            <h2>Choose promotion</h2>
+            <h2>
+                Choose promotion
+            </h2>
 
             <div class="promotion-buttons">
 
@@ -188,8 +239,6 @@
     </div>
 
 
-    <!-- Game over -->
-
     <div id="gameOver" class="modal hidden">
 
         <div class="game-over-box">
@@ -200,7 +249,10 @@
 
             <p id="gameOverText"></p>
 
-            <button class="primary" id="newGame2">
+            <button
+                class="primary"
+                id="newGame2"
+            >
                 Play Again
             </button>
 
@@ -211,7 +263,10 @@
 </div>
 
 
-<script src="script.js"></script>
+<script
+    type="module"
+    src="script.js"
+></script>
 
 </body>
 </html>
