@@ -19,6 +19,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
 
 
+/* =========================================================
+   FIREBASE
+========================================================= */
+
 const firebaseConfig = {
     apiKey: "AIzaSyCvhOcbA-KlP49VdwgTCIbBtHRw-KKTHi0",
     authDomain: "chessgame-5ad44.firebaseapp.com",
@@ -29,51 +33,46 @@ const firebaseConfig = {
     measurementId: "G-2M09G38TSB"
 };
 
-
 const app = initializeApp(firebaseConfig);
-
 const auth = getAuth(app);
-
 const db = getFirestore(app);
 
 
 /* =========================================================
-   HTML ELEMENTS
+   HTML
 ========================================================= */
 
 const boardElement = document.getElementById("board");
-
 const movesElement = document.getElementById("moves");
 
 const modeElement = document.getElementById("gameMode");
-
 const roomControls = document.getElementById("roomControls");
-
 const roomIdElement = document.getElementById("roomId");
-
 const roomStatus = document.getElementById("roomStatus");
 
 const whiteClock = document.getElementById("whiteClock");
-
 const blackClock = document.getElementById("blackClock");
 
 const whiteStatus = document.getElementById("whiteStatus");
-
 const blackStatus = document.getElementById("blackStatus");
 
 const timeControl = document.getElementById("timeControl");
-
 const difficulty = document.getElementById("difficulty");
 
 const gameOverModal = document.getElementById("gameOver");
-
 const gameOverTitle = document.getElementById("gameOverTitle");
-
 const gameOverText = document.getElementById("gameOverText");
+
+const newGameButton = document.getElementById("newGame");
+const newGameButton2 = document.getElementById("newGame2");
+const undoButton = document.getElementById("undo");
+
+const createRoomButton = document.getElementById("createRoom");
+const joinRoomButton = document.getElementById("joinRoom");
 
 
 /* =========================================================
-   CHESS PIECES
+   PIECES
 ========================================================= */
 
 const pieces = {
@@ -112,15 +111,13 @@ const files = [
 
 
 /* =========================================================
-   GAME VARIABLES
+   GAME STATE
 ========================================================= */
 
 let board = [];
-
 let turn = "w";
 
 let selected = null;
-
 let history = [];
 
 let gameOver = false;
@@ -132,16 +129,11 @@ let clocks = {
 
 let timer = null;
 
-
-/* =========================================================
-   LAST MOVE
-========================================================= */
-
 let lastMove = null;
 
 
 /* =========================================================
-   FIREBASE MULTIPLAYER
+   MULTIPLAYER STATE
 ========================================================= */
 
 let currentUser = null;
@@ -153,15 +145,28 @@ let myColor = "w";
 let roomUnsubscribe = null;
 
 
-/* =========================================================
-   MOVE ANIMATION
-========================================================= */
+/*
+ * ID of the last move sent by this browser.
+ *
+ * This prevents our own Firestore snapshot
+ * from making the piece move twice.
+ */
+
+let lastLocalMoveId = null;
+
+let lastReceivedMoveId = null;
+
+
+/*
+ * Prevent remote snapshot from being
+ * applied while our local animation is running.
+ */
 
 let animationInProgress = false;
 
 
 /* =========================================================
-   INITIAL BOARD
+   CREATE INITIAL BOARD
 ========================================================= */
 
 function createInitialBoard() {
@@ -171,7 +176,6 @@ function createInitialBoard() {
             { length: 8 },
             () => Array(8).fill(null)
         );
-
 
     const backRank = [
         "R",
@@ -183,7 +187,6 @@ function createInitialBoard() {
         "N",
         "R"
     ];
-
 
     for (let c = 0; c < 8; c++) {
 
@@ -209,9 +212,7 @@ function createInitialBoard() {
 
     }
 
-
     return newBoard;
-
 }
 
 
@@ -261,13 +262,10 @@ function pathClear(
 ) {
 
     const dr = Math.sign(r2 - r1);
-
     const dc = Math.sign(c2 - c1);
 
     let r = r1 + dr;
-
     let c = c1 + dc;
-
 
     while (
         r !== r2 ||
@@ -280,12 +278,9 @@ function pathClear(
 
         r += dr;
         c += dc;
-
     }
 
-
     return true;
-
 }
 
 
@@ -308,19 +303,13 @@ function canMove(
         return false;
     }
 
-
-    const piece =
-        boardState[r1][c1];
-
+    const piece = boardState[r1][c1];
 
     if (!piece) {
         return false;
     }
 
-
-    const target =
-        boardState[r2][c2];
-
+    const target = boardState[r2][c2];
 
     if (
         target &&
@@ -329,13 +318,10 @@ function canMove(
         return false;
     }
 
-
     const dr = r2 - r1;
-
     const dc = c2 - c1;
 
     const absR = Math.abs(dr);
-
     const absC = Math.abs(dc);
 
 
@@ -353,7 +339,6 @@ function canMove(
                 ? 6
                 : 1;
 
-
         if (
             dc === 0 &&
             !target &&
@@ -361,7 +346,6 @@ function canMove(
         ) {
             return true;
         }
-
 
         if (
             dc === 0 &&
@@ -375,7 +359,6 @@ function canMove(
             return true;
         }
 
-
         if (
             absC === 1 &&
             dr === direction &&
@@ -384,9 +367,7 @@ function canMove(
             return true;
         }
 
-
         return false;
-
     }
 
 
@@ -394,9 +375,7 @@ function canMove(
 
     if (piece.type === "N") {
 
-        return (
-            absR * absC === 2
-        );
+        return absR * absC === 2;
 
     }
 
@@ -473,9 +452,7 @@ function canMove(
 
     }
 
-
     return false;
-
 }
 
 
@@ -492,9 +469,7 @@ function findKing(
 
         for (let c = 0; c < 8; c++) {
 
-            const piece =
-                boardState[r][c];
-
+            const piece = boardState[r][c];
 
             if (
                 piece &&
@@ -502,20 +477,13 @@ function findKing(
                 piece.type === "K"
             ) {
 
-                return [
-                    r,
-                    c
-                ];
+                return [r, c];
 
             }
-
         }
-
     }
 
-
     return null;
-
 }
 
 
@@ -528,31 +496,25 @@ function isCheck(
     color
 ) {
 
-    const king =
-        findKing(
-            boardState,
-            color
-        );
-
+    const king = findKing(
+        boardState,
+        color
+    );
 
     if (!king) {
         return true;
     }
-
 
     const opponent =
         color === "w"
             ? "b"
             : "w";
 
-
     for (let r = 0; r < 8; r++) {
 
         for (let c = 0; c < 8; c++) {
 
-            const piece =
-                boardState[r][c];
-
+            const piece = boardState[r][c];
 
             if (
                 piece &&
@@ -572,16 +534,11 @@ function isCheck(
                     return true;
 
                 }
-
             }
-
         }
-
     }
 
-
     return false;
-
 }
 
 
@@ -596,14 +553,11 @@ function legalMoves(
 
     const result = [];
 
-    const piece =
-        board[row][col];
-
+    const piece = board[row][col];
 
     if (!piece) {
         return result;
     }
-
 
     for (let r = 0; r < 8; r++) {
 
@@ -621,17 +575,14 @@ function legalMoves(
                 continue;
             }
 
-
             const testBoard =
                 copyBoard(board);
-
 
             testBoard[r][c] =
                 testBoard[row][col];
 
             testBoard[row][col] =
                 null;
-
 
             if (
                 !isCheck(
@@ -646,14 +597,10 @@ function legalMoves(
                 ]);
 
             }
-
         }
-
     }
 
-
     return result;
-
 }
 
 
@@ -665,6 +612,8 @@ function renderBoard() {
 
     boardElement.innerHTML = "";
 
+    const fragment =
+        document.createDocumentFragment();
 
     for (let row = 0; row < 8; row++) {
 
@@ -672,7 +621,6 @@ function renderBoard() {
 
             const square =
                 document.createElement("div");
-
 
             square.className =
                 "square " +
@@ -710,7 +658,6 @@ function renderBoard() {
                     lastMove.to[0] === row &&
                     lastMove.to[1] === col;
 
-
                 if (isFrom || isTo) {
 
                     square.classList.add(
@@ -718,7 +665,6 @@ function renderBoard() {
                     );
 
                 }
-
             }
 
 
@@ -732,14 +678,12 @@ function renderBoard() {
                         selected[1]
                     );
 
-
                 const legal =
                     moves.some(
                         move =>
                             move[0] === row &&
                             move[1] === col
                     );
-
 
                 if (legal) {
 
@@ -756,9 +700,7 @@ function renderBoard() {
                         );
 
                     }
-
                 }
-
             }
 
 
@@ -767,14 +709,10 @@ function renderBoard() {
             const piece =
                 board[row][col];
 
-
             if (piece) {
 
                 const pieceElement =
-                    document.createElement(
-                        "span"
-                    );
-
+                    document.createElement("span");
 
                 pieceElement.className =
                     "piece " +
@@ -784,7 +722,6 @@ function renderBoard() {
                             : "black-piece"
                     );
 
-
                 pieceElement.textContent =
                     pieces[
                         piece.color
@@ -792,40 +729,34 @@ function renderBoard() {
                         piece.type
                     ];
 
-
                 square.appendChild(
                     pieceElement
                 );
-
             }
 
 
-            square.onclick =
+            square.addEventListener(
+                "click",
                 () =>
                     handleSquareClick(
                         row,
                         col
-                    );
-
-
-            boardElement.appendChild(
-                square
+                    )
             );
 
+            fragment.appendChild(square);
         }
-
     }
 
+    boardElement.appendChild(fragment);
 
     updateStatus();
-
     updateClocks();
-
 }
 
 
 /* =========================================================
-   CLICK SQUARE
+   CLICK
 ========================================================= */
 
 function handleSquareClick(
@@ -844,21 +775,19 @@ function handleSquareClick(
     /* Multiplayer */
 
     if (
-        modeElement.value ===
-            "multiplayer" &&
-        turn !== myColor
+        modeElement.value === "multiplayer" &&
+        (
+            !currentRoom ||
+            turn !== myColor
+        )
     ) {
-
         return;
-
     }
 
 
     const piece =
         board[row][col];
 
-
-    /* Already selected */
 
     if (selected) {
 
@@ -868,14 +797,12 @@ function handleSquareClick(
                 selected[1]
             );
 
-
         const valid =
             moves.some(
                 move =>
                     move[0] === row &&
                     move[1] === col
             );
-
 
         if (valid) {
 
@@ -887,13 +814,9 @@ function handleSquareClick(
             );
 
             return;
-
         }
-
     }
 
-
-    /* Select own piece */
 
     if (
         piece &&
@@ -911,14 +834,13 @@ function handleSquareClick(
 
     }
 
-
     renderBoard();
-
 }
 
 
 /* =========================================================
-   ANIMATE MOVE
+   MOVE ANIMATION
+   EXACTLY 1 SECOND
 ========================================================= */
 
 async function animatePieceMove(
@@ -933,70 +855,46 @@ async function animatePieceMove(
             ".square"
         );
 
-
     const fromSquare =
-        squares[
-            r1 * 8 + c1
-        ];
-
+        squares[r1 * 8 + c1];
 
     const toSquare =
-        squares[
-            r2 * 8 + c2
-        ];
-
+        squares[r2 * 8 + c2];
 
     if (
         !fromSquare ||
         !toSquare
     ) {
-
         return;
-
     }
-
 
     const originalPiece =
         fromSquare.querySelector(
             ".piece"
         );
 
-
     if (!originalPiece) {
-
         return;
-
     }
-
 
     const fromRect =
         fromSquare.getBoundingClientRect();
 
-
     const toRect =
         toSquare.getBoundingClientRect();
-
 
     const boardRect =
         boardElement.getBoundingClientRect();
 
-
-    /*
-     * Clone the piece.
-     */
-
     const animatedPiece =
         originalPiece.cloneNode(true);
-
 
     animatedPiece.classList.add(
         "piece-animation"
     );
 
-
-    /*
-     * Start position.
-     */
+    animatedPiece.style.position =
+        "absolute";
 
     animatedPiece.style.left =
         (
@@ -1005,7 +903,6 @@ async function animatePieceMove(
             fromRect.width / 2
         ) + "px";
 
-
     animatedPiece.style.top =
         (
             fromRect.top -
@@ -1013,57 +910,43 @@ async function animatePieceMove(
             fromRect.height / 2
         ) + "px";
 
-
     animatedPiece.style.width =
         (
             fromRect.width * 0.88
         ) + "px";
-
 
     animatedPiece.style.height =
         (
             fromRect.height * 0.88
         ) + "px";
 
-
     animatedPiece.style.transform =
         "translate(-50%, -50%)";
 
+    animatedPiece.style.zIndex =
+        "1000";
 
-    /*
-     * Add to board.
-     */
+    animatedPiece.style.pointerEvents =
+        "none";
+
+    animatedPiece.style.transition =
+        "transform 1s cubic-bezier(.2,.8,.2,1)";
 
     boardElement.appendChild(
         animatedPiece
     );
 
-
-    /*
-     * Hide original.
-     */
-
     originalPiece.style.opacity =
         "0";
-
-
-    /*
-     * Movement distance.
-     */
 
     const dx =
         toRect.left -
         fromRect.left;
 
-
     const dy =
         toRect.top -
         fromRect.top;
 
-
-    /*
-     * Start animation.
-     */
 
     await new Promise(resolve => {
 
@@ -1077,25 +960,20 @@ async function animatePieceMove(
                         calc(-50% + ${dy}px)
                     )`;
 
-
-                setTimeout(
-                    resolve,
-                    290
-                );
-
             });
 
         });
 
+
+        setTimeout(
+            resolve,
+            1000
+        );
+
     });
 
 
-    /*
-     * Remove animated piece.
-     */
-
     animatedPiece.remove();
-
 }
 
 
@@ -1116,13 +994,34 @@ async function makeMove(
         return;
     }
 
-
     const piece =
         board[r1][c1];
 
-
     if (!piece) {
         return;
+    }
+
+
+    /*
+     * Multiplayer validation
+     */
+
+    if (
+        !remote &&
+        modeElement.value === "multiplayer"
+    ) {
+
+        if (!currentRoom) {
+            return;
+        }
+
+        if (piece.color !== myColor) {
+            return;
+        }
+
+        if (turn !== myColor) {
+            return;
+        }
     }
 
 
@@ -1130,25 +1029,24 @@ async function makeMove(
 
 
     /*
-     * Save for Undo.
+     * Save Undo
      */
 
     history.push({
         board: copyBoard(board),
-        turn: turn
+        turn: turn,
+        clocks: {
+            ...clocks
+        }
     });
 
-
-    /*
-     * Was this a capture?
-     */
 
     const captured =
         board[r2][c2] !== null;
 
 
     /*
-     * Animate BEFORE changing board.
+     * Animate BEFORE board changes.
      */
 
     await animatePieceMove(
@@ -1160,19 +1058,18 @@ async function makeMove(
 
 
     /*
-     * Move piece.
+     * Move
      */
 
     board[r2][c2] = {
         ...piece
     };
 
-
     board[r1][c1] = null;
 
 
     /*
-     * Promotion.
+     * Promotion
      */
 
     if (
@@ -1185,12 +1082,11 @@ async function makeMove(
 
         board[r2][c2].type =
             promotion;
-
     }
 
 
     /*
-     * Notation.
+     * Notation
      */
 
     const notation =
@@ -1205,13 +1101,8 @@ async function makeMove(
         files[c2] +
         (8 - r2);
 
-
     addMove(notation);
 
-
-    /*
-     * Last move.
-     */
 
     lastMove = {
 
@@ -1232,7 +1123,19 @@ async function makeMove(
 
 
     /*
-     * Change turn.
+     * Generate unique move ID.
+     */
+
+    const moveId =
+        `${Date.now()}-${Math.random()
+            .toString(36)
+            .substring(2, 8)}`;
+
+    lastLocalMoveId = moveId;
+
+
+    /*
+     * Change turn
      */
 
     turn =
@@ -1241,15 +1144,11 @@ async function makeMove(
             : "w";
 
 
-    /*
-     * Redraw.
-     */
-
     renderBoard();
 
 
     /*
-     * Capture effect.
+     * Capture animation
      */
 
     if (captured) {
@@ -1257,17 +1156,13 @@ async function makeMove(
         const targetSquare =
             boardElement.querySelectorAll(
                 ".square"
-            )[
-                r2 * 8 + c2
-            ];
-
+            )[r2 * 8 + c2];
 
         if (targetSquare) {
 
             targetSquare.classList.add(
                 "capture-animation"
             );
-
 
             setTimeout(() => {
 
@@ -1276,32 +1171,24 @@ async function makeMove(
                 );
 
             }, 300);
-
         }
-
     }
 
-
-    /*
-     * Check game.
-     */
 
     checkGameEnd();
 
 
     /*
-     * Firebase.
+     * Multiplayer sync
      */
 
     if (
         !remote &&
-        modeElement.value ===
-            "multiplayer" &&
+        modeElement.value === "multiplayer" &&
         currentRoom
     ) {
 
-        await syncRoom();
-
+        await syncRoom(moveId);
     }
 
 
@@ -1309,7 +1196,7 @@ async function makeMove(
 
 
     /*
-     * AI.
+     * AI
      */
 
     if (
@@ -1321,11 +1208,9 @@ async function makeMove(
 
         setTimeout(
             computerMove,
-            450
+            350
         );
-
     }
-
 }
 
 
@@ -1347,9 +1232,7 @@ function addMove(text) {
 
         movesElement.textContent +=
             "   " + text;
-
     }
-
 }
 
 
@@ -1361,14 +1244,12 @@ function checkGameEnd() {
 
     const possibleMoves = [];
 
-
     for (let r = 0; r < 8; r++) {
 
         for (let c = 0; c < 8; c++) {
 
             const piece =
                 board[r][c];
-
 
             if (
                 piece &&
@@ -1381,11 +1262,8 @@ function checkGameEnd() {
                         c
                     )
                 );
-
             }
-
         }
-
     }
 
 
@@ -1408,7 +1286,7 @@ function checkGameEnd() {
             if (turn === "w") {
 
                 gameOverTitle.textContent =
-                    "Computer Wins";
+                    "Black Wins";
 
                 gameOverText.textContent =
                     "Checkmate!";
@@ -1416,11 +1294,10 @@ function checkGameEnd() {
             } else {
 
                 gameOverTitle.textContent =
-                    "You Win!";
+                    "White Wins";
 
                 gameOverText.textContent =
                     "Checkmate!";
-
             }
 
         } else {
@@ -1430,16 +1307,13 @@ function checkGameEnd() {
 
             gameOverText.textContent =
                 "Stalemate.";
-
         }
 
 
         gameOverModal.classList.remove(
             "hidden"
         );
-
     }
-
 }
 
 
@@ -1449,7 +1323,11 @@ function checkGameEnd() {
 
 function computerMove() {
 
-    if (gameOver) {
+    if (
+        gameOver ||
+        animationInProgress ||
+        turn !== "b"
+    ) {
         return;
     }
 
@@ -1464,7 +1342,6 @@ function computerMove() {
             const piece =
                 board[r][c];
 
-
             if (
                 piece &&
                 piece.color === "b"
@@ -1477,7 +1354,6 @@ function computerMove() {
                         "b"
                     );
 
-
                 for (const move of moves) {
 
                     allMoves.push([
@@ -1486,13 +1362,9 @@ function computerMove() {
                         move[0],
                         move[1]
                     ]);
-
                 }
-
             }
-
         }
-
     }
 
 
@@ -1516,11 +1388,6 @@ function computerMove() {
         );
 
 
-    /*
-     * Medium / Hard:
-     * prefer captures.
-     */
-
     if (level >= 2) {
 
         const captures =
@@ -1533,7 +1400,6 @@ function computerMove() {
                     ]
             );
 
-
         if (captures.length) {
 
             chosenMove =
@@ -1543,9 +1409,7 @@ function computerMove() {
                         captures.length
                     )
                 ];
-
         }
-
     }
 
 
@@ -1555,7 +1419,6 @@ function computerMove() {
         chosenMove[2],
         chosenMove[3]
     );
-
 }
 
 
@@ -1572,9 +1435,7 @@ function legalMovesForColor(
     const oldTurn =
         turn;
 
-
     turn = color;
-
 
     const moves =
         legalMoves(
@@ -1582,13 +1443,10 @@ function legalMovesForColor(
             col
         );
 
-
     turn =
         oldTurn;
 
-
     return moves;
-
 }
 
 
@@ -1596,43 +1454,37 @@ function legalMovesForColor(
    CLOCK
 ========================================================= */
 
-function updateClocks() {
-
-    whiteClock.textContent =
-        formatTime(
-            clocks.w
-        );
-
-
-    blackClock.textContent =
-        formatTime(
-            clocks.b
-        );
-
-}
-
-
 function formatTime(seconds) {
+
+    const safeSeconds =
+        Math.max(
+            0,
+            Number(seconds) || 0
+        );
 
     const minutes =
         Math.floor(
-            seconds / 60
+            safeSeconds / 60
         );
 
-
     const secs =
-        seconds % 60;
-
+        safeSeconds % 60;
 
     return (
-        String(minutes)
-            .padStart(2, "0")
-        +
+        String(minutes).padStart(2, "0") +
         ":" +
-        String(secs)
-            .padStart(2, "0")
+        String(secs).padStart(2, "0")
     );
+}
 
+
+function updateClocks() {
+
+    whiteClock.textContent =
+        formatTime(clocks.w);
+
+    blackClock.textContent =
+        formatTime(clocks.b);
 }
 
 
@@ -1640,58 +1492,72 @@ function startClock() {
 
     clearInterval(timer);
 
-
     timer =
-        setInterval(
-            () => {
+        setInterval(() => {
+
+            if (
+                gameOver ||
+                animationInProgress
+            ) {
+                return;
+            }
+
+
+            /*
+             * In multiplayer don't run
+             * the opponent's clock locally.
+             */
+
+            if (
+                modeElement.value === "multiplayer" &&
+                currentRoom &&
+                turn !== myColor
+            ) {
+                return;
+            }
+
+
+            clocks[turn]--;
+
+            if (
+                clocks[turn] <= 0
+            ) {
+
+                clocks[turn] = 0;
+
+                gameOver = true;
+
+                clearInterval(timer);
+
+                gameOverTitle.textContent =
+                    turn === "w"
+                        ? "Black Wins"
+                        : "White Wins";
+
+                gameOverText.textContent =
+                    "Time has expired.";
+
+                gameOverModal.classList.remove(
+                    "hidden"
+                );
+
 
                 if (
-                    gameOver ||
-                    animationInProgress
-                ) {
-                    return;
-                }
-
-
-                clocks[turn]--;
-
-
-                if (
-                    clocks[turn] <= 0
+                    modeElement.value ===
+                    "multiplayer"
                 ) {
 
-                    clocks[turn] = 0;
-
-                    gameOver = true;
-
-                    clearInterval(
-                        timer
+                    syncRoom(
+                        "timeout-" +
+                        Date.now()
                     );
-
-
-                    gameOverTitle.textContent =
-                        turn === "w"
-                            ? "Computer Wins"
-                            : "You Win!";
-
-
-                    gameOverText.textContent =
-                        "Time has expired.";
-
-
-                    gameOverModal.classList.remove(
-                        "hidden"
-                    );
-
                 }
+            }
 
 
-                updateClocks();
+            updateClocks();
 
-            },
-            1000
-        );
-
+        }, 1000);
 }
 
 
@@ -1702,9 +1568,20 @@ function startClock() {
 function updateStatus() {
 
     if (
-        modeElement.value ===
-        "multiplayer"
+        modeElement.value === "multiplayer"
     ) {
+
+        if (!currentRoom) {
+
+            whiteStatus.textContent =
+                "Waiting for room";
+
+            blackStatus.textContent =
+                "Waiting for room";
+
+            return;
+        }
+
 
         whiteStatus.textContent =
             turn === "w"
@@ -1713,7 +1590,11 @@ function updateStatus() {
                         ? "Your turn"
                         : "Opponent turn"
                 )
-                : "Waiting";
+                : (
+                    myColor === "w"
+                        ? "Opponent turn"
+                        : "Your turn"
+                );
 
 
         blackStatus.textContent =
@@ -1723,7 +1604,11 @@ function updateStatus() {
                         ? "Your turn"
                         : "Opponent turn"
                 )
-                : "Waiting";
+                : (
+                    myColor === "b"
+                        ? "Opponent turn"
+                        : "Your turn"
+                );
 
     } else {
 
@@ -1732,14 +1617,11 @@ function updateStatus() {
                 ? "Your turn"
                 : "Waiting";
 
-
         blackStatus.textContent =
             turn === "b"
                 ? "Computer thinking"
                 : "Computer";
-
     }
-
 }
 
 
@@ -1752,23 +1634,20 @@ function newGame() {
     board =
         createInitialBoard();
 
-
     turn = "w";
-
 
     selected = null;
 
-
     history = [];
-
 
     lastMove = null;
 
-
     gameOver = false;
 
-
     animationInProgress = false;
+
+    lastLocalMoveId = null;
+    lastReceivedMoveId = null;
 
 
     const seconds =
@@ -1794,9 +1673,7 @@ function newGame() {
 
     renderBoard();
 
-
     startClock();
-
 }
 
 
@@ -1804,62 +1681,94 @@ function newGame() {
    NEW GAME BUTTON
 ========================================================= */
 
-document
-    .getElementById("newGame")
-    .addEventListener(
-        "click",
-        newGame
-    );
+newGameButton.addEventListener(
+    "click",
+    () => {
+
+        /*
+         * In multiplayer don't overwrite
+         * an existing online room.
+         */
+
+        if (
+            modeElement.value === "multiplayer" &&
+            currentRoom
+        ) {
+
+            roomStatus.textContent =
+                "Start a new room for a new multiplayer game.";
+
+            return;
+        }
+
+        newGame();
+    }
+);
 
 
-document
-    .getElementById("newGame2")
-    .addEventListener(
-        "click",
-        newGame
-    );
+newGameButton2.addEventListener(
+    "click",
+    newGame
+);
 
 
 /* =========================================================
    UNDO
 ========================================================= */
 
-document
-    .getElementById("undo")
-    .addEventListener(
-        "click",
-        () => {
+undoButton.addEventListener(
+    "click",
+    () => {
 
-            if (
-                history.length === 0 ||
-                animationInProgress
-            ) {
-                return;
-            }
-
-
-            const previous =
-                history.pop();
-
-
-            board =
-                previous.board;
-
-
-            turn =
-                previous.turn;
-
-
-            selected = null;
-
-
-            lastMove = null;
-
-
-            renderBoard();
-
+        if (
+            history.length === 0 ||
+            animationInProgress
+        ) {
+            return;
         }
-    );
+
+
+        /*
+         * Disable normal Undo online.
+         * Otherwise two clients can diverge.
+         */
+
+        if (
+            modeElement.value === "multiplayer"
+        ) {
+
+            roomStatus.textContent =
+                "Undo is disabled in Multiplayer.";
+
+            return;
+        }
+
+
+        const previous =
+            history.pop();
+
+
+        board =
+            previous.board;
+
+        turn =
+            previous.turn;
+
+
+        if (previous.clocks) {
+
+            clocks =
+                previous.clocks;
+        }
+
+
+        selected = null;
+
+        lastMove = null;
+
+        renderBoard();
+    }
+);
 
 
 /* =========================================================
@@ -1868,7 +1777,21 @@ document
 
 timeControl.addEventListener(
     "change",
-    newGame
+    () => {
+
+        if (
+            modeElement.value === "multiplayer" &&
+            currentRoom
+        ) {
+
+            roomStatus.textContent =
+                "Time cannot be changed during an online game.";
+
+            return;
+        }
+
+        newGame();
+    }
 );
 
 
@@ -1880,15 +1803,42 @@ modeElement.addEventListener(
     "change",
     () => {
 
+        if (roomUnsubscribe) {
+
+            roomUnsubscribe();
+
+            roomUnsubscribe = null;
+        }
+
+
+        currentRoom = null;
+        lastLocalMoveId = null;
+        lastReceivedMoveId = null;
+
+
         roomControls.classList.toggle(
             "hidden",
-            modeElement.value !==
-                "multiplayer"
+            modeElement.value !== "multiplayer"
         );
 
 
-        newGame();
+        if (
+            modeElement.value === "multiplayer"
+        ) {
 
+            roomStatus.textContent =
+                currentUser
+                    ? "Firebase connected. Create or join a room."
+                    : "Connecting to Firebase...";
+
+        } else {
+
+            roomStatus.textContent =
+                "Not connected";
+        }
+
+
+        newGame();
     }
 );
 
@@ -1898,6 +1848,13 @@ modeElement.addEventListener(
 ========================================================= */
 
 signInAnonymously(auth)
+    .then(() => {
+
+        console.log(
+            "Firebase anonymous authentication started."
+        );
+
+    })
     .catch(error => {
 
         console.error(
@@ -1906,8 +1863,8 @@ signInAnonymously(auth)
         );
 
         roomStatus.textContent =
-            "Firebase authentication failed.";
-
+            "Firebase Auth error: " +
+            error.code;
     });
 
 
@@ -1921,254 +1878,304 @@ onAuthStateChanged(
 
         if (currentUser) {
 
+            console.log(
+                "Firebase user:",
+                currentUser.uid
+            );
+
+
             if (
-                modeElement.value ===
-                "multiplayer"
+                modeElement.value === "multiplayer"
             ) {
 
                 roomStatus.textContent =
-                    "Firebase connected.";
-
+                    "Firebase connected. Create or join a room.";
             }
 
-        }
+        } else {
 
+            roomStatus.textContent =
+                "Firebase authentication required.";
+        }
     }
 );
+
+
+/* =========================================================
+   GENERATE ROOM ID
+========================================================= */
+
+function generateRoomId() {
+
+    return Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
+}
 
 
 /* =========================================================
    CREATE ROOM
 ========================================================= */
 
-document
-    .getElementById("createRoom")
-    .addEventListener(
-        "click",
-        async () => {
+createRoomButton.addEventListener(
+    "click",
+    async () => {
 
-            if (!currentUser) {
+        if (!currentUser) {
 
-                roomStatus.textContent =
-                    "Connecting to Firebase...";
+            roomStatus.textContent =
+                "Connecting to Firebase...";
 
-                return;
-
-            }
-
-
-            currentRoom =
-                Math.random()
-                    .toString(36)
-                    .substring(
-                        2,
-                        8
-                    )
-                    .toUpperCase();
-
-
-            roomIdElement.value =
-                currentRoom;
-
-
-            myColor = "w";
-
-
-            const roomRef =
-                doc(
-                    db,
-                    "rooms",
-                    currentRoom
-                );
-
-
-            try {
-
-                await setDoc(
-                    roomRef,
-                    {
-
-                        hostUid:
-                            currentUser.uid,
-
-                        guestUid:
-                            null,
-
-                        board:
-                            JSON.stringify(
-                                board
-                            ),
-
-                        turn,
-
-                        clocks,
-
-                        status:
-                            "waiting",
-
-                        createdAt:
-                            serverTimestamp(),
-
-                        updatedAt:
-                            serverTimestamp()
-
-                    }
-                );
-
-
-                roomStatus.textContent =
-                    "Room created: " +
-                    currentRoom;
-
-
-                listenRoom();
-
-            } catch (error) {
-
-                console.error(
-                    error
-                );
-
-
-                roomStatus.textContent =
-                    "Could not create room.";
-
-            }
-
+            return;
         }
-    );
+
+
+        /*
+         * Close old listener.
+         */
+
+        if (roomUnsubscribe) {
+
+            roomUnsubscribe();
+
+            roomUnsubscribe = null;
+        }
+
+
+        currentRoom =
+            generateRoomId();
+
+        myColor = "w";
+
+
+        roomIdElement.value =
+            currentRoom;
+
+
+        /*
+         * Always create a fresh board.
+         */
+
+        newGame();
+
+
+        const roomRef =
+            doc(
+                db,
+                "rooms",
+                currentRoom
+            );
+
+
+        try {
+
+            await setDoc(
+                roomRef,
+                {
+
+                    hostUid:
+                        currentUser.uid,
+
+                    guestUid:
+                        null,
+
+                    board:
+                        JSON.stringify(board),
+
+                    turn:
+                        "w",
+
+                    clocks:
+                        {
+                            ...clocks
+                        },
+
+                    status:
+                        "waiting",
+
+                    lastMoveId:
+                        null,
+
+                    createdAt:
+                        serverTimestamp(),
+
+                    updatedAt:
+                        serverTimestamp()
+                }
+            );
+
+
+            roomStatus.textContent =
+                "Room created: " +
+                currentRoom +
+                ". Waiting for opponent...";
+
+
+            listenRoom();
+
+        } catch (error) {
+
+            console.error(
+                "Create room error:",
+                error
+            );
+
+            roomStatus.textContent =
+                "Create room error: " +
+                error.code;
+        }
+    }
+);
 
 
 /* =========================================================
    JOIN ROOM
 ========================================================= */
 
-document
-    .getElementById("joinRoom")
-    .addEventListener(
-        "click",
-        async () => {
+joinRoomButton.addEventListener(
+    "click",
+    async () => {
 
-            if (!currentUser) {
+        if (!currentUser) {
 
-                roomStatus.textContent =
-                    "Connecting to Firebase...";
+            roomStatus.textContent =
+                "Connecting to Firebase...";
 
-                return;
-
-            }
+            return;
+        }
 
 
-            const roomId =
-                roomIdElement.value
-                    .trim()
-                    .toUpperCase();
+        const roomId =
+            roomIdElement.value
+                .trim()
+                .toUpperCase();
 
 
-            if (!roomId) {
+        if (!roomId) {
 
-                roomStatus.textContent =
-                    "Enter Room ID.";
+            roomStatus.textContent =
+                "Enter Room ID.";
 
-                return;
+            return;
+        }
 
-            }
+
+        const roomRef =
+            doc(
+                db,
+                "rooms",
+                roomId
+            );
 
 
-            const roomRef =
-                doc(
-                    db,
-                    "rooms",
-                    roomId
+        try {
+
+            const snapshot =
+                await getDoc(
+                    roomRef
                 );
 
 
-            try {
+            if (!snapshot.exists()) {
 
-                const snapshot =
-                    await getDoc(
-                        roomRef
-                    );
+                roomStatus.textContent =
+                    "Room not found.";
 
-
-                if (
-                    !snapshot.exists()
-                ) {
-
-                    roomStatus.textContent =
-                        "Room not found.";
-
-                    return;
-
-                }
+                return;
+            }
 
 
-                const data =
-                    snapshot.data();
+            const data =
+                snapshot.data();
 
 
-                if (
-                    data.guestUid &&
-                    data.guestUid !==
-                        currentUser.uid
-                ) {
+            /*
+             * Already another guest?
+             */
 
-                    roomStatus.textContent =
-                        "Room is full.";
+            if (
+                data.guestUid &&
+                data.guestUid !== currentUser.uid
+            ) {
 
-                    return;
+                roomStatus.textContent =
+                    "Room is full.";
 
-                }
+                return;
+            }
 
+
+            /*
+             * Don't allow host to join
+             * his own room as Black.
+             */
+
+            if (
+                data.hostUid === currentUser.uid
+            ) {
 
                 currentRoom =
                     roomId;
 
-
-                myColor = "b";
-
-
-                await updateDoc(
-                    roomRef,
-                    {
-
-                        guestUid:
-                            currentUser.uid,
-
-                        status:
-                            "playing",
-
-                        updatedAt:
-                            serverTimestamp()
-
-                    }
-                );
-
+                myColor = "w";
 
                 roomStatus.textContent =
-                    "Joined as Black.";
-
+                    "You are already the host of this room.";
 
                 listenRoom();
 
-            } catch (error) {
-
-                console.error(
-                    error
-                );
-
-
-                roomStatus.textContent =
-                    "Could not join room.";
-
+                return;
             }
 
+
+            currentRoom =
+                roomId;
+
+            myColor = "b";
+
+
+            await updateDoc(
+                roomRef,
+                {
+
+                    guestUid:
+                        currentUser.uid,
+
+                    status:
+                        "playing",
+
+                    updatedAt:
+                        serverTimestamp()
+                }
+            );
+
+
+            roomStatus.textContent =
+                "Joined room " +
+                roomId +
+                " as Black.";
+
+
+            listenRoom();
+
+        } catch (error) {
+
+            console.error(
+                "Join room error:",
+                error
+            );
+
+            roomStatus.textContent =
+                "Join room error: " +
+                error.code;
         }
-    );
+    }
+);
 
 
 /* =========================================================
-   LISTEN TO ROOM
+   LISTEN ROOM
 ========================================================= */
 
 function listenRoom() {
@@ -2178,7 +2185,6 @@ function listenRoom() {
         roomUnsubscribe();
 
         roomUnsubscribe = null;
-
     }
 
 
@@ -2198,17 +2204,15 @@ function listenRoom() {
     roomUnsubscribe =
         onSnapshot(
             roomRef,
+
             snapshot => {
 
-                if (
-                    !snapshot.exists()
-                ) {
+                if (!snapshot.exists()) {
 
                     roomStatus.textContent =
                         "Room was deleted.";
 
                     return;
-
                 }
 
 
@@ -2216,13 +2220,16 @@ function listenRoom() {
                     snapshot.data();
 
 
+                /*
+                 * Determine color.
+                 */
+
                 if (
                     data.hostUid ===
                     currentUser?.uid
                 ) {
 
                     myColor = "w";
-
                 }
 
 
@@ -2232,57 +2239,165 @@ function listenRoom() {
                 ) {
 
                     myColor = "b";
-
                 }
 
 
-                if (data.board) {
+                /*
+                 * Room status.
+                 */
 
-                    /*
-                     * Не запускаем повторную
-                     * анимацию на своём ходе.
-                     */
+                if (
+                    data.status === "waiting"
+                ) {
+
+                    roomStatus.textContent =
+                        "Room " +
+                        currentRoom +
+                        " — waiting for opponent...";
+                }
+
+                if (
+                    data.status === "playing"
+                ) {
+
+                    roomStatus.textContent =
+                        "Room " +
+                        currentRoom +
+                        " — online";
+                }
+
+
+                /*
+                 * Important:
+                 *
+                 * If this snapshot is our own move,
+                 * don't redraw the board again.
+                 */
+
+                const snapshotMoveId =
+                    data.lastMoveId || null;
+
+
+                const isOurSnapshot =
+                    snapshotMoveId &&
+                    snapshotMoveId ===
+                    lastLocalMoveId;
+
+
+                /*
+                 * Always update opponent joining.
+                 */
+
+                if (
+                    data.guestUid &&
+                    data.status === "playing"
+                ) {
+
+                    if (
+                        myColor === "w"
+                    ) {
+
+                        blackStatus.textContent =
+                            "Opponent connected";
+                    } else {
+
+                        whiteStatus.textContent =
+                            "Opponent connected";
+                    }
+                }
+
+
+                /*
+                 * Apply remote state only
+                 * when it wasn't created by us.
+                 */
+
+                if (
+                    !isOurSnapshot &&
+                    !animationInProgress &&
+                    data.board
+                ) {
 
                     board =
                         JSON.parse(
                             data.board
                         );
 
+
+                    if (data.turn) {
+
+                        turn =
+                            data.turn;
+                    }
+
+
+                    if (data.clocks) {
+
+                        clocks =
+                            {
+                                ...data.clocks
+                            };
+                    }
+
+
+                    lastReceivedMoveId =
+                        snapshotMoveId;
+
+
+                    selected = null;
+
+
+                    renderBoard();
+
+
+                    checkGameEnd();
                 }
 
 
-                if (data.turn) {
+                /*
+                 * If no move has happened yet,
+                 * synchronize initial state.
+                 */
+
+                if (
+                    !data.lastMoveId &&
+                    data.board &&
+                    !animationInProgress
+                ) {
+
+                    board =
+                        JSON.parse(
+                            data.board
+                        );
 
                     turn =
-                        data.turn;
+                        data.turn || "w";
 
+                    if (data.clocks) {
+
+                        clocks =
+                            {
+                                ...data.clocks
+                            };
+                    }
+
+                    renderBoard();
                 }
-
-
-                if (data.clocks) {
-
-                    clocks =
-                        data.clocks;
-
-                }
-
-
-                renderBoard();
 
             },
+
             error => {
 
                 console.error(
-                    "Room listener error:",
+                    "Firestore listener error:",
                     error
                 );
 
                 roomStatus.textContent =
-                    "Room connection error.";
-
+                    "Room connection error: " +
+                    error.code;
             }
         );
-
 }
 
 
@@ -2290,7 +2405,9 @@ function listenRoom() {
    SYNC ROOM
 ========================================================= */
 
-async function syncRoom() {
+async function syncRoom(
+    moveId = null
+) {
 
     if (
         !currentRoom ||
@@ -2315,17 +2432,21 @@ async function syncRoom() {
             {
 
                 board:
-                    JSON.stringify(
-                        board
-                    ),
+                    JSON.stringify(board),
 
-                turn,
+                turn:
+                    turn,
 
-                clocks,
+                clocks:
+                    {
+                        ...clocks
+                    },
+
+                lastMoveId:
+                    moveId,
 
                 updatedAt:
                     serverTimestamp()
-
             }
         );
 
@@ -2337,15 +2458,16 @@ async function syncRoom() {
         );
 
         roomStatus.textContent =
-            "Sync error.";
-
+            "Sync error: " +
+            error.code;
     }
-
 }
 
 
 /* =========================================================
-   START GAME
+   START
 ========================================================= */
+
+roomControls.classList.add("hidden");
 
 newGame();
