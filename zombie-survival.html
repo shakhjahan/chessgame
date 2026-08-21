@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zombie Survival Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .game-wrapper {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .game-container {
+            position: relative;
+            width: 1000px;
+            height: 700px;
+            background: linear-gradient(to bottom, #2c3e50 0%, #1a1a1a 100%);
+            border: 3px solid #ff6b6b;
+            box-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(to bottom, #34495e 0%, #1a1a1a 100%);
+            cursor: crosshair;
+        }
+
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .hud-left, .hud-right {
+            display: flex;
+            gap: 30px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-label {
+            color: #bdc3c7;
+        }
+
+        .stat-value {
+            color: #ff6b6b;
+            font-size: 18px;
+        }
+
+        .ammo-stat .stat-value {
+            color: #f39c12;
+        }
+
+        .game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            text-align: center;
+        }
+
+        .game-over-screen.active {
+            display: flex;
+        }
+
+        .game-over-screen h1 {
+            font-size: 48px;
+            color: #ff6b6b;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(255, 107, 107, 0.8);
+        }
+
+        .game-over-screen p {
+            font-size: 20px;
+            margin: 10px 0;
+            color: #ecf0f1;
+        }
+
+        .game-over-screen .final-stats {
+            margin: 30px 0;
+            font-size: 18px;
+            border: 2px solid #ff6b6b;
+            padding: 20px;
+            border-radius: 10px;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .restart-btn {
+            margin-top: 30px;
+            padding: 12px 40px;
+            font-size: 18px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .restart-btn:hover {
+            background: #ee5a52;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 12px;
+            color: #bdc3c7;
+            z-index: 5;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 5px;
+        }
+
+        .walkthrough-panel {
+            width: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 700px;
+            overflow-y: auto;
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .walkthrough-panel h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .walkthrough-section {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(52, 152, 219, 0.1);
+            border-left: 3px solid #3498db;
+            border-radius: 4px;
+        }
+
+        .walkthrough-section h3 {
+            color: #f39c12;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .walkthrough-section p {
+            color: #ecf0f1;
+            font-size: 12px;
+            line-height: 1.6;
+            margin-bottom: 5px;
+        }
+
+        .tips-list {
+            list-style: none;
+            color: #2ecc71;
+            font-size: 12px;
+        }
+
+        .tips-list li {
+            margin: 5px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .tips-list li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #2ecc71;
+        }
+
+        .walkthrough-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .walkthrough-panel::-webkit-scrollbar-track {
+            background: rgba(52, 152, 219, 0.1);
+            border-radius: 10px;
+        }
+
+        .walkthrough-panel::-webkit-scrollbar-thumb {
+            background: #3498db;
+            border-radius: 10px;
+        }
+
+        .walkthrough-panel::-webkit-scrollbar-thumb:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <div class="game-container">
+            <canvas id="gameCanvas" width="1000" height="700"></canvas>
+            
+            <div class="hud">
+                <div class="hud-left">
+                    <div class="stat">
+                        <span class="stat-label">❤️ Health:</span>
+                        <span class="stat-value" id="healthValue">100</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">🔫 Ammo:</span>
+                        <span class="stat-value ammo-stat" id="ammoValue">30</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">💀 Kills:</span>
+                        <span class="stat-value" id="killsValue">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="game-over-screen" id="gameOverScreen">
+                <h1>GAME OVER</h1>
+                <div class="final-stats">
+                    <p>Total Kills: <span id="finalKills">0</span></p>
+                    <p>Survival Time: <span id="survivalTime">0</span>s</p>
+                </div>
+                <button class="restart-btn" onclick="location.reload()">Play Again</button>
+            </div>
+
+            <div class="instructions">
+                <strong>WASD</strong> Move | <strong>Mouse</strong> Aim | <strong>CLICK</strong> Shoot | <strong>R</strong> Reload
+            </div>
+        </div>
+
+        <div class="walkthrough-panel">
+            <h2>🎮 How to Play</h2>
+            
+            <div class="walkthrough-section">
+                <h3>Objective</h3>
+                <p>Survive as long as possible by defeating waves of zombies. Defeat all zombies to progress!</p>
+            </div>
+
+            <div class="walkthrough-section">
+                <h3>🕹️ Controls</h3>
+                <ul class="tips-list">
+                    <li><strong>W/A/S/D</strong> - Move around</li>
+                    <li><strong>Arrow Keys</strong> - Alternative movement</li>
+                    <li><strong>Mouse</strong> - Aim your weapon</li>
+                    <li><strong>Left Click</strong> - Shoot</li>
+                    <li><strong>R Key</strong> - Reload (auto-reload at 0 ammo)</li>
+                </ul>
+            </div>
+
+            <div class="walkthrough-section">
+                <h3>💡 Strategy Tips</h3>
+                <ul class="tips-list">
+                    <li>Keep moving! Don't stay in one spot</li>
+                    <li>Use corners to your advantage</li>
+                    <li>Group zombies together for easy kills</li>
+                    <li>Monitor your health carefully</li>
+                    <li>Ammo regenerates when depleted</li>
+                    <li>Aim for the head (center of zombie)</li>
+                </ul>
+            </div>
+
+            <div class="walkthrough-section">
+                <h3>🧟 Enemy Info</h3>
+                <ul class="tips-list">
+                    <li>Zombies spawn from map edges</li>
+                    <li>Each zombie takes 2-3 headshots</li>
+                    <li>Avoid direct contact - it damages you</li>
+                    <li>More zombies appear as you get kills</li>
+                </ul>
+            </div>
+
+            <div class="walkthrough-section">
+                <h3>⚠️ Health System</h3>
+                <ul class="tips-list">
+                    <li>You start with 100 HP</li>
+                    <li>Each zombie hit deals 10-15 damage</li>
+                    <li>No healing items available</li>
+                    <li>Game ends when health reaches 0</li>
+                </ul>
+            </div>
+
+            <div class="walkthrough-section">
+                <h3>🎯 Scoring</h3>
+                <ul class="tips-list">
+                    <li>+1 Kill per zombie defeated</li>
+                    <li>Survival time increases over time</li>
+                    <li>Difficulty scales with kills</li>
+                    <li>Try to beat your high score!</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="zombie-game.js"></script>
+</body>
+</html>
